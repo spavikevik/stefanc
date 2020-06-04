@@ -11,23 +11,44 @@ tokens :-
   $white+                               ;
 
   -- KEYWORDS
-  for                                   { \s -> For }
-  while                                 { \s -> While }
-  "if"                                  { \s -> If }
-  "else"                                { \s -> Else }
-  static                                { \s -> Static }
-  "do"                                  { \s -> Do }
+  auto                                  { \s -> Auto }
   break                                 { \s -> Break }
+  case                                  { \s -> Case }
+  const                                 { \s -> Const }
   continue                              { \s -> Continue }
+  default                               { \s -> Default }
+  do                                    { \s -> Do }
+  double                                { \s -> Double }
+  else                                  { \s -> Else }
+  enum                                  { \s -> Enum }
   extern                                { \s -> Extern }
+  float                                 { \s -> Float }
+  for                                   { \s -> For }
+  goto                                  { \s -> Goto }
+  if                                    { \s -> If }
+  int                                   { \s -> Int }
+  long                                  { \s -> Long }
+  register                              { \s -> Register }
   return                                { \s -> Return }
+  short                                 { \s -> Short }
+  signed                                { \s -> Signed }
+  sizeof                                { \s -> Sizeof }
+  static                                { \s -> Static }
+  struct                                { \s -> Struct }
+  switch                                { \s -> Switch }
+  typedef                               { \s -> Typedef }
+  union                                 { \s -> Union }
+  unsigned                              { \s -> Unsigned }
+  void                                  { \s -> Void }
+  volatile                              { \s -> Volatile }
+  while                                 { \s -> While }
 
   -- IDENTIFIER
   \_? $alpha [$alpha $digit \_]*        { \s -> Identifier s }
 
   -- LITERALS
-  $digit+                               { \s -> Int (read s) }
-  $digit+ \. $digit+                    { \s -> Double (read s) }
+  $digit+                               { \s -> IntLit (read s) }
+  $digit+ \. $digit+                    { \s -> FloatLit (read s) }
   \" .* \"                              { \s -> String s }
 
   -- OPERATORS
@@ -57,20 +78,42 @@ tokens :-
 
 {
 data Token          =
-  For               |
-  While             |
-  If                |
-  Else              |
-  Static            |
-  Do                |
+  Auto              |
   Break             |
+  Case              |
+  Char              |
+  Const             |
   Continue          |
+  Default           |
+  Do                |
+  Double            |
+  Else              |
+  Enum              |
   Extern            |
+  Float             |
+  For               |
+  Goto              |
+  If                |
+  Int               |
+  Long              |
+  Register          |
   Return            |
+  Short             |
+  Signed            |
+  Sizeof            |
+  Static            |
+  Struct            |
+  Switch            |
+  Typedef           |
+  Union             |
+  Unsigned          |
+  Void              |
+  Volatile          |
+  While             |
   Identifier String |
   String String     |
-  Int Int           |
-  Double Double     |
+  IntLit Int        |
+  FloatLit Float    |
   Sym Char          |
   Assign            |
   Plus              |
