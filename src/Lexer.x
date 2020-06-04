@@ -1,8 +1,17 @@
 {
-module Main (main) where
+{-# OPTIONS -w  #-}
+module Lexer
+  ( TokenWithMeta(..)
+  , AlexPosn(..)
+  , Token(..)
+  , Alex(..)
+  , runAlex
+  ) where
+import Prelude hiding (lex)
+import Control.Monad (liftM)
 }
 
-%wrapper "basic"
+%wrapper "monadUserState"
 
 $digit = 0-9 -- digits
 $alpha = [a-zA-Z] -- alphabetic characters
@@ -11,72 +20,85 @@ tokens :-
   $white+                               ;
 
   -- KEYWORDS
-  auto                                  { \s -> Auto }
-  break                                 { \s -> Break }
-  case                                  { \s -> Case }
-  const                                 { \s -> Const }
-  continue                              { \s -> Continue }
-  default                               { \s -> Default }
-  do                                    { \s -> Do }
-  double                                { \s -> Double }
-  else                                  { \s -> Else }
-  enum                                  { \s -> Enum }
-  extern                                { \s -> Extern }
-  float                                 { \s -> Float }
-  for                                   { \s -> For }
-  goto                                  { \s -> Goto }
-  if                                    { \s -> If }
-  int                                   { \s -> Int }
-  long                                  { \s -> Long }
-  register                              { \s -> Register }
-  return                                { \s -> Return }
-  short                                 { \s -> Short }
-  signed                                { \s -> Signed }
-  sizeof                                { \s -> Sizeof }
-  static                                { \s -> Static }
-  struct                                { \s -> Struct }
-  switch                                { \s -> Switch }
-  typedef                               { \s -> Typedef }
-  union                                 { \s -> Union }
-  unsigned                              { \s -> Unsigned }
-  void                                  { \s -> Void }
-  volatile                              { \s -> Volatile }
-  while                                 { \s -> While }
+  auto                                  { tokenizeAs Auto }
+  break                                 { tokenizeAs Break }
+  case                                  { tokenizeAs Case }
+  const                                 { tokenizeAs Const }
+  continue                              { tokenizeAs Continue }
+  default                               { tokenizeAs Default }
+  do                                    { tokenizeAs Do }
+  double                                { tokenizeAs Double }
+  else                                  { tokenizeAs Else }
+  enum                                  { tokenizeAs Enum }
+  extern                                { tokenizeAs Extern }
+  float                                 { tokenizeAs Float }
+  for                                   { tokenizeAs For }
+  goto                                  { tokenizeAs Goto }
+  if                                    { tokenizeAs If }
+  int                                   { tokenizeAs Int }
+  long                                  { tokenizeAs Long }
+  register                              { tokenizeAs Register }
+  return                                { tokenizeAs Return }
+  short                                 { tokenizeAs Short }
+  signed                                { tokenizeAs Signed }
+  sizeof                                { tokenizeAs Sizeof }
+  static                                { tokenizeAs Static }
+  struct                                { tokenizeAs Struct }
+  switch                                { tokenizeAs Switch }
+  typedef                               { tokenizeAs Typedef }
+  union                                 { tokenizeAs Union }
+  unsigned                              { tokenizeAs Unsigned }
+  void                                  { tokenizeAs Void }
+  volatile                              { tokenizeAs Volatile }
+  while                                 { tokenizeAs While }
 
   -- IDENTIFIER
-  \_? $alpha [$alpha $digit \_]*        { \s -> Identifier s }
+  \_? $alpha [$alpha $digit \_]*        { tokenizeAs' $ Identifier }
 
   -- LITERALS
-  $digit+                               { \s -> IntLit (read s) }
-  $digit+ \. $digit+                    { \s -> FloatLit (read s) }
-  \" .* \"                              { \s -> String s }
+  $digit+                               { tokenizeAs' $ IntLit . read }
+  $digit+ \. $digit+                    { tokenizeAs' $ FloatLit . read }
+  \" .* \"                              { tokenizeAs' $ String }
 
   -- OPERATORS
-  "="                                   { \s -> Assign }
-  "+"                                   { \s -> Plus }
-  "-"                                   { \s -> Minus }
-  "*"                                   { \s -> Asterisk }
-  "/"                                   { \s -> Slash }
-  "<"                                   { \s -> LessThan }
-  "<="                                  { \s -> LessThanEq }
-  ">"                                   { \s -> GreaterThan }
-  ">="                                  { \s -> GreaterThanEq }
-  "=="                                  { \s -> Equal }
-  "!="                                  { \s -> NotEqual }
-  "!"                                   { \s -> Bang }
+  "="                                   { tokenizeAs Assign }
+  "+"                                   { tokenizeAs Plus }
+  "-"                                   { tokenizeAs Minus }
+  "*"                                   { tokenizeAs Asterisk }
+  "/"                                   { tokenizeAs Slash }
+  "<"                                   { tokenizeAs LessThan }
+  "<="                                  { tokenizeAs LessThanEq }
+  ">"                                   { tokenizeAs GreaterThan }
+  ">="                                  { tokenizeAs GreaterThanEq }
+  "=="                                  { tokenizeAs Equal }
+  "!="                                  { tokenizeAs NotEqual }
+  "!"                                   { tokenizeAs Bang }
 
    -- DELIMITERS
-  ","                                   { \s -> Comma }
-  ";"                                   { \s -> Semicolon }
-  ":"                                   { \s -> Colon }
-  "{"                                   { \s -> LBrace }
-  "}"                                   { \s -> RBrace }
-  "("                                   { \s -> LParen }
-  ")"                                   { \s -> RParen }
-  "["                                   { \s -> LBracket }
-  "]"                                   { \s -> RBracket }                      
+  ","                                   { tokenizeAs Comma }
+  ";"                                   { tokenizeAs Semicolon }
+  ":"                                   { tokenizeAs Colon }
+  "{"                                   { tokenizeAs LBrace }
+  "}"                                   { tokenizeAs RBrace }
+  "("                                   { tokenizeAs LParen }
+  ")"                                   { tokenizeAs RParen }
+  "["                                   { tokenizeAs LBracket }
+  "]"                                   { tokenizeAs RBracket }                      
 
 {
+data AlexUserState = AlexUserState { filePath :: FilePath }
+
+alexInitUserState :: AlexUserState
+alexInitUserState = AlexUserState "<none>"
+
+getFilePath :: Alex FilePath
+getFilePath = liftM filePath alexGetUserState
+
+setFilePath :: FilePath -> Alex ()
+setFilePath = alexSetUserState . AlexUserState
+
+data TokenWithMeta = TokenWithMeta AlexPosn Token
+
 data Token          =
   Auto              |
   Break             |
@@ -135,11 +157,19 @@ data Token          =
   LParen            |
   RParen            |
   LBracket          |
-  RBracket 
+  RBracket          |
+  EOF
   deriving (Eq, Show)
 
-main = do
-  s <- getContents
-  putStrLn $ show (alexScanTokens s)
+alexEOF :: Alex TokenWithMeta
+alexEOF = do
+  (pos, _, _, _) <- alexGetInput
+  return $ TokenWithMeta pos EOF
+
+tokenizeAs' :: (String -> Token) -> AlexAction TokenWithMeta
+tokenizeAs' tokenizer = \(pos, _, _, input) len -> return $ TokenWithMeta pos (tokenizer (take len input))
+
+tokenizeAs :: Token -> AlexAction TokenWithMeta
+tokenizeAs = tokenizeAs' . const
 }
   
